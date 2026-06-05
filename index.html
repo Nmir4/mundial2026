@@ -347,8 +347,8 @@ footer strong{color:var(--acc);}
       <button class="btn primary" onclick="doLogin()">Entrar →</button>
     </div>
     <div id="panR" style="display:none;flex-direction:column;gap:10px">
-      <div class="field"><label>Nome da criança</label><input type="text" id="rChild" placeholder="ex: Gui"></div>
-      <div class="field"><label>Nome dos pais (utilizador)</label><input type="text" id="rName" placeholder="ex: Pais do Gui"></div>
+      <div class="field"><label>Nome da criança</label><input type="text" id="rChild" placeholder="ex: Gui (aparece em destaque)"></div>
+      <div class="field"><label>Nome dos pais (login)</label><input type="text" id="rName" placeholder="ex: Pais do Gui"></div>
       <div class="field"><label>Password</label><input type="password" id="rPass" placeholder="Mínimo 4 caracteres"></div>
       <div class="amsg" id="rMsg"></div>
       <button class="btn primary" onclick="doRegister()">Pedir acesso →</button>
@@ -681,7 +681,7 @@ window.savePrf=async function(){
 function applyPrf(){
   if(!session)return;
   document.getElementById('hName').textContent=session.child||session.nome;
-  document.getElementById('hSub').textContent=session.nome+' · 980 Cromos · Panini';
+  document.getElementById('hSub').textContent=(session.child?'Pais: '+session.nome:session.nome)+' · 980 Cromos';
   const av=document.getElementById('avEl');
   av.innerHTML=session.photo?`<img src="${session.photo}">`:`<span style="font-size:40px">${session.emoji||'⚽'}</span>`;
   document.title=(session.child||session.nome)+' · Mundial 2026';
