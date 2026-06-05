@@ -71,21 +71,21 @@ header::before{content:'';position:absolute;inset:0;background:radial-gradient(e
 /* Avatar grande */
 .hav-wrap{position:relative;flex-shrink:0;cursor:pointer;z-index:1;}
 .hav{
-  width:62px;height:62px;border-radius:50%;
+  width:80px;height:80px;border-radius:50%;
   border:3px solid var(--acc);
   background:var(--s2);
   display:flex;align-items:center;justify-content:center;
-  font-size:30px;overflow:hidden;
-  box-shadow:0 0 20px #f5c51840;
+  font-size:38px;overflow:hidden;
+  box-shadow:0 0 24px #f5c51860;
   transition:box-shadow .2s;
 }
 .hav:hover{box-shadow:0 0 30px #f5c51870;}
 .hav img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .hav-edit{
-  position:absolute;bottom:0;right:0;
-  width:20px;height:20px;border-radius:50%;
+  position:absolute;bottom:2px;right:2px;
+  width:22px;height:22px;border-radius:50%;
   background:var(--acc);color:#000;
-  font-size:10px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;display:flex;align-items:center;justify-content:center;
   font-weight:900;border:2px solid var(--bg);
 }
 
@@ -494,7 +494,41 @@ const ADMIN='Nmira_admin';
 
 let ST={}, session=null, pendP=null, selE='⚽', fmode='all', srch='', ctab='c', chatUnsub=null, lastMsgCount=0;
 
-function saveLocal(){if(session)localStorage.setItem('wc26_'+session.nome,JSON.stringify(ST));}
+function saveLocal(){
+  if(session){
+    localStorage.setItem('wc26_'+session.nome,JSON.stringify(ST));
+    clearTimeout(window._fbSave);
+    window._fbSave=setTimeout(saveFirebase,1500);
+  }
+}
+async function saveFirebase(){
+  if(!session) return;
+  try{
+    await setDoc(doc(db,'stickers',session.nome),{st:ST,updated:Date.now()},{merge:false});
+  }catch(e){console.error('saveFirebase',e);}
+}
+async function loadFirebase(){
+  if(!session) return;
+  try{
+    const d=await getDoc(doc(db,'stickers',session.nome));
+    if(d.exists()&&d.data().st){
+      const remote=d.data().st;
+      const remoteCount=Object.values(remote).filter(v=>v>=1).length;
+      const localCount=Object.values(ST).filter(v=>v>=1).length;
+      // usar o que tem mais cromos marcados (migração automática)
+      if(remoteCount>=localCount){
+        ST=remote;
+      } else {
+        // local tem mais — guardar no Firebase
+        await saveFirebase();
+      }
+      localStorage.setItem('wc26_'+session.nome,JSON.stringify(ST));
+    } else if(Object.keys(ST).length>0){
+      // não há dados no Firebase mas há local — migrar para Firebase
+      await saveFirebase();
+    }
+  }catch(e){console.error('loadFirebase',e);}
+}
 
 // ===== FIRESTORE =====
 async function getUser(nome){try{const d=await getDoc(doc(db,'users',nome));return d.exists()?d.data():null;}catch(e){return null;}}
@@ -553,20 +587,23 @@ window.doLogin=async function(){
   startSession(u);
 };
 
-function startSession(u){
+async function startSession(u){
   session=u;
   try{ST=JSON.parse(localStorage.getItem('wc26_'+u.nome)||'{}');}catch(e){}
   localStorage.setItem('wc26_sess',JSON.stringify({nome:u.nome,pass:u.pass}));
   document.getElementById('accessScreen').style.display='none';
   document.getElementById('appScreen').style.display='block';
   applyPrf();
+  // carregar cromos do Firebase (sincroniza todos os dispositivos)
+  await loadFirebase();
+  updGlobal();renderC();
   if(u.isAdmin){
     document.getElementById('adminBtn').style.display='flex';
     document.getElementById('tadm').style.display='flex';
     checkPendingNotif();
   }
   startChatNotif();
-  pushShared();updGlobal();renderC();
+  pushShared();
 }
 
 async function checkPendingNotif(){
@@ -646,7 +683,7 @@ function applyPrf(){
   document.getElementById('hName').textContent=session.child||session.nome;
   document.getElementById('hSub').textContent=session.nome+' · 980 Cromos · Panini';
   const av=document.getElementById('avEl');
-  av.innerHTML=session.photo?`<img src="${session.photo}">`:`<span style="font-size:28px">${session.emoji||'⚽'}</span>`;
+  av.innerHTML=session.photo?`<img src="${session.photo}">`:`<span style="font-size:40px">${session.emoji||'⚽'}</span>`;
   document.title=(session.child||session.nome)+' · Mundial 2026';
 }
 
@@ -1011,7 +1048,13 @@ window.printPDF=function(type){
     for(const grp of GROUPS){let gs='';for(const t of grp.teams){const rs=Array.from({length:20},(_,i)=>t.c+(i+1)).filter(n=>(ST[t.c+'_'+n]||0)===2);if(!rs.length)continue;gs+=`<div class="st" style="border-color:orange">${t.f} ${t.n} <span class="sc">(${rs.length}×)</span></div><div class="nums">${rs.map(n=>`<span class="nb" style="border-color:orange">${n}</span>`).join('')}</div>`;}if(gs)sh+=`<div style="font-weight:900;font-size:10px;letter-spacing:2px;margin:12px 0 3px;color:#666;border-bottom:1px solid #ddd;padding-bottom:3px">GRUPO ${grp.g}</div>`+gs;}
     pages+=`<div class="pp"><div class="ph"><h2>REPETIDOS PARA TROCA · ${rep}</h2><p>${session.emoji||'⚽'} ${nome} · ${date}</p></div>${sh||'<p>Sem repetidos.</p>'}</div>`;
   }
-  const win=window.open('','_blank');
+  // abrir PDF
+  let win;
+  try { win = window.open('','_blank'); } catch(e) { win = null; }
+  if(!win || win.closed || typeof win.closed === 'undefined') {
+    showToast('Permite pop-ups para gerar PDF','tc');
+    return;
+  }
   win.document.write(`<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Relatório · ${nome}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:0;font-size:11px;color:#000;background:#fff}.pp{padding:18px 22px;page-break-after:always;max-width:780px;margin:0 auto}.pp:last-child{page-break-after:auto}.ph{text-align:center;margin-bottom:14px;border-bottom:3px solid #000;padding-bottom:10px}.ph h2{font-size:16px;font-weight:900;letter-spacing:3px;margin:0;text-transform:uppercase}.ph p{font-size:10px;color:#555;margin:4px 0 0}.sr{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;padding:8px;background:#f0f0f0;border-radius:4px}.st{font-weight:900;text-transform:uppercase;margin:11px 0 4px;border-left:4px solid #000;padding-left:8px;font-size:11px}.sc{font-weight:normal;font-size:9px}.nums{line-height:2.2}.nb{display:inline-block;min-width:34px;margin:1px 2px;padding:1px 5px;border:1px solid #ccc;border-radius:3px;font-size:9px;font-family:monospace;text-align:center}.tbl{width:100%;border-collapse:collapse;font-size:10px}.tbl th{background:#ddd;padding:5px 7px;text-align:left;border:1px solid #ccc;font-weight:900}.tbl td{padding:4px 7px;border:1px solid #ccc}.tbl tr:nth-child(even) td{background:#f9f9f9}@media print{@page{margin:13mm}}</style></head><body>${pages}</body></html>`);
   win.document.close();win.focus();setTimeout(()=>win.print(),400);
 };
@@ -1032,27 +1075,4 @@ window.setTab=function(t){
 };
 window.fm=function(m){
   fmode=m;
-  ['All','Miss','Have','Rep'].forEach(x=>{const val=x==='All'?'all':x==='Miss'?'missing':x==='Have'?'have':'rep';document.getElementById('b'+x)?.classList.toggle('on',m===val);});
-  renderC();
-};
-window.resetAll=function(){if(!confirm('Apagar todo o progresso?'))return;ST={};saveLocal();updGlobal();renderC();showToast('Progresso apagado!','tc');};
-window.togSec=function(id){document.getElementById('sec_'+id)?.classList.toggle('col');};
-function showToast(msg,type=''){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast show'+(type?' '+type:'');
-  clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),2000);
-}
-document.getElementById('lPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('rPass').addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
-document.getElementById('srch').addEventListener('input',function(){srch=this.value.toLowerCase().trim();if(ctab==='c')renderC();});
-document.getElementById('prfOvl').addEventListener('click',e=>{if(e.target===document.getElementById('prfOvl'))closePrf();});
-document.addEventListener('input',e=>{if(e.target.tagName==='TEXTAREA'){e.target.style.height='';e.target.style.height=Math.min(e.target.scrollHeight,80)+'px';}});
-(async()=>{
-  try{
-    const saved=JSON.parse(localStorage.getItem('wc26_sess')||'null');
-    if(saved){const u=await getUser(saved.nome);if(u&&u.pass===saved.pass&&u.status==='approved'){startSession(u);return;}}
-  }catch(e){}
-})();
-</script>
-</body>
-</html>
+  ['All','Miss','Have','Rep'].forEach(x=>{const val=x==='All'?'all':x==='Miss'?'missing':x==='Have'?'have':'rep';document.getElementById('b'+x)?.classLis
