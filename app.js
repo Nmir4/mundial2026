@@ -119,7 +119,11 @@ window.doRegister=async function(){
   if(!child||!nome||!pass){msg.className='amsg err';msg.textContent='Preenche todos os campos.';return;}
   if(pass.length<4){msg.className='amsg err';msg.textContent='Password com mínimo 4 caracteres.';return;}
   const existing=await getUser(nome);
-  if(existing){msg.className='amsg err';msg.textContent='Este nome já existe.';return;}
+  if(existing){
+    msg.className='amsg err';
+    msg.innerHTML='Este nome já existe.<br><small>Escolhe outro nome ou recupera o acesso com o admin.</small>';
+    return;
+  }
   const isAdmin=(nome===ADMIN);
   const u={nome,child,pass:btoa(pass),emoji:'⚽',photo:'',status:isAdmin?'approved':'pending',isAdmin:!!isAdmin,created:Date.now()};
   await setUser(nome,u);
@@ -296,7 +300,7 @@ function bCromo(code,cor,n){
   const playerName = PLAYERS[n] || '';
   const pageNum = PAGE_MAP[code] || '';
   const tooltipTxt = playerName ? `${n} · ${playerName}${pageNum?' · pág.'+pageNum:''}` : n;
-  return `<div class="${cls}" id="${sid}" onclick="cycle('${code}','${n}')" title="${tooltipTxt}" data-player="${playerName}" data-page="${pageNum}">
+  return `<div class="${cls}" id="${sid}" onclick="cycle('${code}','${n}')" onmouseenter="showTip(event,'${tooltipTxt}')" onmouseleave="hideTip()">
     <div class="cbdg">${badge}</div>
     <div class="cnum">${shortN}</div>
     <div class="cbar" style="background:${cor}"></div>
@@ -441,8 +445,18 @@ async function renderT(){
     } else if(myReps.size){
       html+=`<div style="font-size:10px;color:var(--mu);margin-top:5px;font-style:italic">Sem repetidos novos para ${u.child||u.nome}</div>`;
     }
-    if(u.score>0){
-      html+=`<a class="wa-btn" href="https://wa.me/?text=${waMsg}" target="_blank">📲 Combinar troca via WhatsApp</a>`;
+    if(u.score>0||myRepsForThem.length>0){
+      // mensagem WhatsApp com detalhes dos cromos
+      const getMsgs = u.canGet.slice(0,10).map(s=>s.split('_')[1]||s).join(', ');
+      const giveMsgs = myRepsForThem.slice(0,10).map(s=>s.split('_')[1]||s).join(', ');
+      const waDetail = encodeURIComponent(
+        'Olá! Sou ' + (session.child||session.nome) + ' 👋\n' +
+        'Podemos trocar cromos do Mundial 2026 🌍⚽\n\n' +
+        (u.canGet.length ? '📥 Quero de ti: ' + getMsgs + (u.canGet.length>10?' e mais...':'') + '\n' : '') +
+        (myRepsForThem.length ? '📤 Posso dar-te: ' + giveMsgs + (myRepsForThem.length>10?' e mais...':'') + '\n' : '') +
+        '\nnmir4.github.io/mundial2026'
+      );
+      html+=`<a class="wa-btn" href="https://wa.me/?text=${waDetail}" target="_blank">📲 Combinar via WhatsApp</a>`;
     }
     html+=`</div>`;
   }
@@ -655,6 +669,21 @@ document.getElementById('rPass').addEventListener('keydown',e=>{if(e.key==='Ente
 document.getElementById('srch').addEventListener('input',function(){srch=this.value.toLowerCase().trim();if(ctab==='c')renderC();});
 document.getElementById('prfOvl').addEventListener('click',e=>{if(e.target===document.getElementById('prfOvl'))closePrf();});
 document.addEventListener('input',e=>{if(e.target.tagName==='TEXTAREA'){e.target.style.height='';e.target.style.height=Math.min(e.target.scrollHeight,80)+'px';}});
+
+// ===== TOOLTIP =====
+window.showTip=function(e,txt){
+  const t=document.getElementById('ctooltip');
+  if(!t)return;
+  t.textContent=txt;t.style.display='block';
+  const x=Math.min(e.clientX+10, window.innerWidth-t.offsetWidth-10);
+  const y=Math.max(e.clientY-40, 10);
+  t.style.left=x+'px';t.style.top=y+'px';
+};
+window.hideTip=function(){
+  const t=document.getElementById('ctooltip');
+  if(t)t.style.display='none';
+};
+document.addEventListener('scroll',()=>hideTip(),{passive:true});
 
 // ===== SIDEBAR =====
 window.openSidebar=function(){
