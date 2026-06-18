@@ -150,10 +150,24 @@ window.doLogin=async function(){
   const msg=document.getElementById('lMsg');
   if(!nome||!pass){msg.className='amsg err';msg.textContent='Preenche os campos.';return;}
   const u=await getUser(nome);
-  if(!u||btoa(pass)!==u.pass){msg.className='amsg err';msg.textContent='Nome ou password incorrectos.';return;}
-  if(u.status==='pending'){msg.className='amsg info';msg.innerHTML=`⏳ Aguarda aprovação.<br><small>O Nicolau Mira ainda não aprovou o teu acesso.</small>`;return;}
-  if(u.status==='rejected'){msg.className='amsg err';msg.textContent='Acesso negado pelo administrador.';return;}
+  if(!u){msg.className='amsg err';msg.innerHTML='Nome não encontrado.<br><small>Verifica o nome ou clica em "Registar" para criar conta.</small>';return;}
+  if(btoa(pass)!==u.pass){
+    msg.className='amsg err';
+    msg.innerHTML='Password incorrecta.<br><small><a href="#" onclick="showForgot()" style="color:var(--acc)">Esqueci a password →</a></small>';
+    return;
+  }
+  if(u.status==='pending'){msg.className='amsg info';msg.innerHTML='⏳ Acesso pendente de aprovação.<br><small>O Nicolau Mira irá aprovar em breve.</small>';return;}
+  if(u.status==='rejected'){msg.className='amsg err';msg.innerHTML='Acesso negado.<br><small>Contacta o Nicolau Mira para mais informações.</small>';return;}
   startSession(u);
+};
+
+window.showForgot=function(){
+  const nome=document.getElementById('lName').value.trim();
+  const msg=document.getElementById('lMsg');
+  msg.className='amsg info';
+  msg.innerHTML=`🔑 Para recuperar a password:<br>
+    <strong>Envia uma mensagem ao Nicolau Mira</strong> com o teu nome de utilizador${nome?' (<b>'+nome+'</b>)':''}.<br>
+    <small>O admin irá fazer reset da tua password no painel ⚙️ Admin.</small>`;
 };
 
 async function startSession(u){
@@ -173,6 +187,8 @@ async function startSession(u){
   }
   startChatNotif();
   pushShared();
+  // pedir permissão notificações
+  setTimeout(pedirNotificacoes, 2000);
 }
 
 async function checkPendingNotif(){
@@ -188,9 +204,25 @@ function startChatNotif(){
     if(ctab==='ch')return;
     const msgs=[];snap.forEach(d=>msgs.push(d.data()));
     if(msgs.length&&msgs[0].nome!==session.nome){
-      document.getElementById('chatNotif').style.display='block';
+      const el=document.getElementById('chatNotif');
+      if(el)el.style.display='block';
+      // notificação do browser se permitido
+      if(Notification.permission==='granted'){
+        const m=msgs[0];
+        new Notification('💬 '+( m.child||m.nome), {
+          body: m.text.substring(0,80),
+          icon: '/mundial2026/favicon.ico'
+        });
+      }
     }
   });
+}
+
+async function pedirNotificacoes(){
+  if('Notification' in window && Notification.permission==='default'){
+    const perm=await Notification.requestPermission();
+    if(perm==='granted') showToast('✓ Notificações activadas!');
+  }
 }
 
 // ===== PROFILE =====
@@ -489,6 +521,7 @@ async function renderCH(){
     const wasBottom=cont.scrollHeight-cont.scrollTop-cont.clientHeight<80;
     cont.innerHTML=msgs.map(m=>{
       const mine=m.nome===session.nome;
+      const isAdmin=m.nome===ADMIN;
       const av=m.photo?`<img src="${m.photo}">`:(m.emoji||'💬');
       const ts=m.ts?.toDate?m.ts.toDate():new Date(m.ts||Date.now());
       const time=ts.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
@@ -497,8 +530,10 @@ async function renderCH(){
       const timeStr=date===today?time:`${date} ${time}`;
       return `<div class="cmsg${mine?' mine':''}">
         <div class="cmav">${av}</div>
-        <div class="cmbbl">
-          <div class="cmname">${m.child||m.nome}</div>
+        <div class="cmbbl" style="${isAdmin&&!mine?'border-color:#7c3aed80;background:linear-gradient(135deg,#1a0d2e,#12081f);':''}">
+          <div class="cmname" style="${isAdmin&&!mine?'color:#c084fc;':''}">
+            ${isAdmin&&!mine?'⚙️ ':''}${m.child||m.nome}${isAdmin&&!mine?' <span style="font-size:9px;background:#7c3aed30;border:1px solid #7c3aed50;padding:1px 5px;border-radius:3px;color:#c084fc">Admin</span>':''}
+          </div>
           <div class="cmtext">${String(m.text).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
           <div class="cmtime">${timeStr}</div>
         </div>

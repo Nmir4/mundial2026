@@ -575,6 +575,14 @@ footer strong{color:var(--acc);}
       <div class="s-item"><div class="s-icon">📖</div><div>Passa o rato por cima de qualquer cromo para ver o <strong>nome do jogador</strong> e o <strong>número de página</strong> na caderneta</div></div>
     </div>
 
+    <div class="s-section">
+      <div class="s-title">🔔 Notificações</div>
+      <div class="s-item"><div class="s-icon">🔔</div><div>Activa as notificações para receberes alertas de novas mensagens no chat</div></div>
+      <div style="margin-top:8px">
+        <button class="btn" style="width:100%;justify-content:center;border-color:#60a5fa;color:#60a5fa" onclick="pedirNotificacoes()">🔔 Activar Notificações</button>
+      </div>
+    </div>
+
     <div style="border-top:1px solid var(--bd);padding-top:12px;text-align:center;font-size:10px;color:var(--mu);line-height:1.7">
       🌍⚽ <strong style="color:var(--acc)">Mundial 2026 · Cromos Panini</strong><br>
       Criado por <strong style="color:var(--acc)">Nicolau Mira</strong> © 2026<br>
@@ -590,6 +598,17 @@ function openSidebar(){var s=document.getElementById('sidebar'),o=document.getEl
 function closeSidebar(){var s=document.getElementById('sidebar'),o=document.getElementById('sideOvl');if(s)s.classList.remove('open');if(o)o.classList.remove('open');}
 function showTip(e,txt){var t=document.getElementById('ctooltip');if(!t)return;t.textContent=txt;t.style.display='block';var x=Math.min(e.clientX+12,window.innerWidth-220),y=Math.max(e.clientY-45,10);t.style.left=x+'px';t.style.top=y+'px';}
 function hideTip(){var t=document.getElementById('ctooltip');if(t)t.style.display='none';}
+function pedirNotificacoes(){
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission().then(function(p){
+      if(p==='granted'){var t=document.getElementById('toast');if(t){t.textContent='✓ Notificações activadas!';t.className='toast show';setTimeout(function(){t.classList.remove('show');},2000);}}
+    });
+  } else if(Notification.permission==='granted'){
+    var t=document.getElementById('toast');if(t){t.textContent='✓ Notificações já activas!';t.className='toast show';setTimeout(function(){t.classList.remove('show');},2000);}
+  } else {
+    alert('Notificações bloqueadas. Activa-as nas definições do browser para este site.');
+  }
+}
 </script>
 <script type="module" src="app.js"></script>
 </body>
