@@ -585,6 +585,12 @@ footer strong{color:var(--acc);}
 
 </div>
 
+<script>
+function openSidebar(){var s=document.getElementById('sidebar'),o=document.getElementById('sideOvl');if(s)s.classList.add('open');if(o)o.classList.add('open');}
+function closeSidebar(){var s=document.getElementById('sidebar'),o=document.getElementById('sideOvl');if(s)s.classList.remove('open');if(o)o.classList.remove('open');}
+function showTip(e,txt){var t=document.getElementById('ctooltip');if(!t)return;t.textContent=txt;t.style.display='block';var x=Math.min(e.clientX+12,window.innerWidth-220),y=Math.max(e.clientY-45,10);t.style.left=x+'px';t.style.top=y+'px';}
+function hideTip(){var t=document.getElementById('ctooltip');if(t)t.style.display='none';}
+</script>
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
