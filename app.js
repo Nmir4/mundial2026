@@ -543,13 +543,13 @@ async function renderT() {
         </div>
         <div class="trade-legs">
           <div class="trade-leg">
-            <div class="trade-leg-lbl" style="color:var(--ok)">📥 Recebes (${trade.offeredByFrom.length})</div>
-            <div class="stags">${trade.offeredByFrom.map(k => `<span class="stag cg" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
+            <div class="trade-leg-lbl" style="color:var(--ok)">📥 Recebes (${trade.wantedByFrom.length})</div>
+            <div class="stags">${trade.wantedByFrom.map(k => `<span class="stag cg" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
           </div>
           <div class="trade-leg">
-            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Dás (${trade.offeredByTo?.length || 0})</div>
-            <div class="stags">${(trade.offeredByTo||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}
-            ${!trade.offeredByTo?.length ? '<span style="font-size:10px;color:var(--mu);font-style:italic">Aguarda que selecciones o que dás</span>' : ''}</div>
+            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Dás (${trade.wantedByTo?.length || 0})</div>
+            <div class="stags">${(trade.wantedByTo||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}
+            ${!trade.wantedByTo?.length ? '<span style="font-size:10px;color:var(--mu);font-style:italic">Aguarda que selecciones o que dás</span>' : ''}</div>
           </div>
         </div>
         <div class="trade-actions">
@@ -580,8 +580,8 @@ async function renderT() {
         </div>
         <div class="trade-legs">
           <div class="trade-leg">
-            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Ofereces (${trade.offeredByFrom.length})</div>
-            <div class="stags">${trade.offeredByFrom.map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
+            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Ofereces (${trade.wantedByFrom.length})</div>
+            <div class="stags">${trade.wantedByFrom.map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
           </div>
         </div>
       </div>`;
@@ -634,8 +634,8 @@ async function renderT() {
       const partnerUser = users.find(u => u.nome === partner);
       const av = partnerUser?.photo ? `<img src="${partnerUser.photo}">` : (partnerUser?.emoji || '⚽');
       const when = trade.confirmedAt ? new Date(trade.confirmedAt).toLocaleDateString('pt-PT') : '—';
-      const gave = iFrom ? trade.offeredByFrom : (trade.offeredByTo || []);
-      const got = iFrom ? (trade.offeredByTo || []) : trade.offeredByFrom;
+      const gave = iFrom ? trade.wantedByFrom : (trade.wantedByTo || []);
+      const got = iFrom ? (trade.wantedByTo || []) : trade.wantedByFrom;
       html += `<div class="ucard" style="opacity:.8">
         <div class="uchead">
           <div class="uavsm">${av}</div>
@@ -664,26 +664,31 @@ async function renderT() {
 
 // ── MODAL: PROPOR TROCA ───────────────────────────────────
 window.openProposeModal = function(toNome, toChild) {
-  const myReps = Object.entries(ST).filter(([,v]) => v === 2).map(([k]) => k);
-  if (!myReps.length) { showToast('Não tens cromos repetidos!', 'tc'); return; }
-
-  // Carrega dados do destinatário para saber o que ele precisa
   loadShared().then(users => {
     const target = users.find(u => u.nome === toNome);
-    const theirMiss = new Set();
-    // Construir lista de em falta do target a partir dos reps que têm (inverso)
-    // Melhor: o que eu tenho repetido que eles não têm
-    const theirHave = new Set(target?.reps || []);
+    const theirReps = target?.reps || [];  // repetidos dele
 
-    // Ordenar: primeiro os que o target precisa (canGet), depois o resto
-    const relevant = myReps.filter(r => !theirHave.has(r));
-    const rest = myReps.filter(r => theirHave.has(r));
-    const sorted = [...relevant, ...rest];
+    if (!theirReps.length) {
+      showToast(`${toChild} não tem repetidos disponíveis.`, 'tc');
+      return;
+    }
+
+    // O que ele tem repetido que eu preciso (prioritário)
+    const myMiss = new Set();
+    for (const grp of GROUPS) for (const t of grp.teams) for (let i = 1; i <= 20; i++) {
+      const n = t.c + i; if (!(ST[t.c + '_' + n] >= 1)) myMiss.add(t.c + '_' + n);
+    }
+    for (const sp of SPECIALS) for (const st of sp.st) {
+      if (!(ST[sp.c + '_' + st.n] >= 1)) myMiss.add(sp.c + '_' + st.n);
+    }
+
+    const wanted  = theirReps.filter(r => myMiss.has(r));   // preciso e ele tem repetido
+    const rest    = theirReps.filter(r => !myMiss.has(r));  // ele tem repetido mas eu já tenho
 
     const modal = document.getElementById('tradeModal');
-    document.getElementById('tradeModalTitle').textContent = `📬 Propor troca a ${toChild}`;
-    document.getElementById('tradeModalSub').textContent = `Selecciona os repetidos que queres dar a ${toChild}. Ele/ela escolhe o que te dá em troca.`;
-    document.getElementById('tradeModalTarget').value = toNome;
+    document.getElementById('tradeModalTitle').textContent = `🎯 Escolher de ${toChild}`;
+    document.getElementById('tradeModalSub').textContent   = `Selecciona os repetidos de ${toChild} que queres. Ele/ela depois escolhe o que quer dos teus.`;
+    document.getElementById('tradeModalTarget').value      = toNome;
     document.getElementById('tradeModalTargetChild').value = toChild;
 
     const grid = document.getElementById('tradeModalGrid');
@@ -695,43 +700,32 @@ window.openProposeModal = function(toNome, toChild) {
         <span class="tp-check">✓</span>
         <div class="tp-code">${code}</div>
         ${lastName ? `<div class="tp-name">${lastName}</div>` : ''}
-        ${hot ? '<div class="tp-badge">precisa</div>' : ''}
+        ${hot ? '<div class="tp-badge">quero</div>' : ''}
       </div>`;
     };
-    const hotHtml = relevant.length
-      ? `<div class="trade-section-label hot">✅ ${toChild} precisa (${relevant.length})</div>
-         <div class="trade-grid-inner">${relevant.map(k => mkCard(k, true)).join('')}</div>`
+    const wantedHtml = wanted.length
+      ? `<div class="trade-section-label hot">🎯 Precisas destes (${wanted.length})</div>
+         <div class="trade-grid-inner">${wanted.map(k => mkCard(k, true)).join('')}</div>`
       : '';
     const restHtml = rest.length
-      ? `<div class="trade-section-label" style="margin-top:${relevant.length?'10px':'0'}">⬜ Outros repetidos teus (${rest.length})</div>
+      ? `<div class="trade-section-label" style="margin-top:${wanted.length ? '12px' : '0'}">📦 Outros repetidos de ${toChild} (${rest.length})</div>
          <div class="trade-grid-inner">${rest.map(k => mkCard(k, false)).join('')}</div>`
       : '';
-    grid.innerHTML = hotHtml + restHtml;
+    grid.innerHTML = (wanted.length + rest.length === 0)
+      ? `<div style="color:var(--mu);font-size:12px;padding:16px 0">Não há repetidos disponíveis.</div>`
+      : wantedHtml + restHtml;
 
+    document.getElementById('tradeSendBtn').textContent = 'Enviar pedido';
     document.getElementById('tradeSendBtn').onclick = () => sendTradeProposal(toNome, toChild);
     modal.classList.add('open');
     updateTradeCount();
   });
 };
 
-window.toggleTradePick = function(el) {
-  el.classList.toggle('selected');
-  updateTradeCount();
-};
-
-function updateTradeCount() {
-  const n = document.querySelectorAll('#tradeModalGrid .trade-pick.selected').length;
-  document.getElementById('tradePickCount').textContent = n ? `${n} cromo${n > 1 ? 's' : ''} seleccionado${n > 1 ? 's' : ''}` : 'Nenhum seleccionado';
-  document.getElementById('tradeSendBtn').disabled = n === 0;
-}
-
-window.closeTradeModal = function() {
-  document.getElementById('tradeModal').classList.remove('open');
-};
-
 async function sendTradeProposal(toNome, toChild) {
-  const selected = [...document.querySelectorAll('#tradeModalGrid .trade-pick.selected')].map(el => el.dataset.key);
-  if (!selected.length) return;
+  // "wantedFromThem" = cromos dele que eu quero
+  const wantedFromThem = [...document.querySelectorAll('#tradeModalGrid .trade-pick.selected')].map(el => el.dataset.key);
+  if (!wantedFromThem.length) return;
 
   document.getElementById('tradeSendBtn').disabled = true;
   document.getElementById('tradeSendBtn').textContent = 'A enviar...';
@@ -742,101 +736,119 @@ async function sendTradeProposal(toNome, toChild) {
       fromChild: session.child || session.nome,
       to: toNome,
       toChild: toChild,
-      offeredByFrom: selected,
-      offeredByTo: [],
+      wantedByFrom: wantedFromThem,  // o que EU quero dele
+      wantedByTo:   [],              // o que ELE vai querer de mim (preenchido na resposta)
       status: 'pending',
       createdAt: Date.now()
     });
     closeTradeModal();
-    showToast(`Proposta enviada a ${toChild}! ✅`, 'ok');
+    showToast(`Pedido enviado a ${toChild}! ✅`, 'ok');
     renderT();
   } catch(e) {
     console.error(e);
-    showToast('Erro ao enviar proposta', 'tc');
+    showToast('Erro ao enviar pedido', 'tc');
     document.getElementById('tradeSendBtn').disabled = false;
-    document.getElementById('tradeSendBtn').textContent = 'Enviar proposta';
+    document.getElementById('tradeSendBtn').textContent = 'Enviar pedido';
   }
 }
 
+
 // ── MODAL: RESPONDER A PROPOSTA ───────────────────────────
 window.openCounterModal = function(tradeId, fromNome) {
-  loadShared().then(async users => {
-    const tradeDoc = await getDocs(query(collection(db, 'trades')));
+  getDocs(collection(db, 'trades')).then(snap => {
     let trade = null;
-    tradeDoc.forEach(d => { if (d.id === tradeId) trade = { id: d.id, ...d.data() }; });
+    snap.forEach(d => { if (d.id === tradeId) trade = { id: d.id, ...d.data() }; });
     if (!trade) return;
 
-    const myReps = Object.entries(ST).filter(([,v]) => v === 2).map(([k]) => k);
-    const sender = users.find(u => u.nome === fromNome);
+    loadShared().then(users => {
+      const sender = users.find(u => u.nome === fromNome);
+      const fromChild = sender?.child || fromNome;
 
-    const modal = document.getElementById('tradeModal');
-    document.getElementById('tradeModalTitle').textContent = `✅ Responder a ${sender?.child || fromNome}`;
-    document.getElementById('tradeModalSub').textContent = `Selecciona os teus repetidos que queres dar em troca.`;
-    document.getElementById('tradeModalTarget').value = tradeId;
-    document.getElementById('tradeModalTargetChild').value = 'counter';
+      // Mostrar os meus repetidos para o destinatário escolher
+      const myReps = Object.entries(ST).filter(([, v]) => v === 2).map(([k]) => k);
 
-    const grid = document.getElementById('tradeModalGrid');
-    if (!myReps.length) {
-      grid.innerHTML = '<div style="color:var(--mu);font-size:12px;padding:10px">Não tens repetidos disponíveis para dar.</div>';
-    } else {
-      grid.innerHTML = `<div class="trade-section-label">Os teus repetidos (${myReps.length})</div>
-        <div class="trade-grid-inner">${myReps.map(k => {
-          const code = k.split('_')[1] || k;
-          const name = PLAYERS[code] || '';
-          const lastName = name ? name.split(' ').slice(-1)[0] : '';
-          return `<div class="trade-pick" data-key="${k}" onclick="toggleTradePick(this)">
-            <span class="tp-check">✓</span>
-            <div class="tp-code">${code}</div>
-            ${lastName ? '<div class="tp-name">'+lastName+'</div>' : ''}
-          </div>`;
-        }).join('')}</div>`;
-    }
+      const modal = document.getElementById('tradeModal');
+      document.getElementById('tradeModalTitle').textContent = `🔄 Responder a ${fromChild}`;
+      document.getElementById('tradeModalSub').textContent   =
+        `${fromChild} quer: ${(trade.wantedByFrom || []).map(k => k.split('_')[1] || k).join(', ')}.\n\nSelecciona os teus repetidos que queres receber em troca.`;
+      document.getElementById('tradeModalTarget').value      = tradeId;
+      document.getElementById('tradeModalTargetChild').value = 'counter';
 
-    document.getElementById('tradeSendBtn').onclick = () => confirmCounter(tradeId, trade);
-    document.getElementById('tradeSendBtn').textContent = 'Confirmar troca';
-    modal.classList.add('open');
-    updateTradeCount();
+      const grid = document.getElementById('tradeModalGrid');
+
+      // Mostrar o que o FROM pediu (read-only, para contexto)
+      const requestedHtml = (trade.wantedByFrom || []).length
+        ? `<div class="trade-section-label" style="color:var(--acc)">📥 ${fromChild} quer de ti (${trade.wantedByFrom.length})</div>
+           <div class="trade-grid-inner" style="margin-bottom:14px">${(trade.wantedByFrom).map(k => {
+             const code = k.split('_')[1] || k;
+             const name = PLAYERS[code] || '';
+             return `<div class="trade-pick trade-pick-hot" style="pointer-events:none;opacity:.85">
+               <div class="tp-code">${code}</div>
+               ${name ? `<div class="tp-name">${name.split(' ').slice(-1)[0]}</div>` : ''}
+             </div>`;
+           }).join('')}</div>`
+        : '';
+
+      // Os meus repetidos — o que quero dar em troca
+      const myRepsHtml = myReps.length
+        ? `<div class="trade-section-label hot">🎯 O que queres em troca? (selecciona)</div>
+           <div class="trade-grid-inner">${myReps.map(k => {
+             const code = k.split('_')[1] || k;
+             const name = PLAYERS[code] || '';
+             const lastName = name ? name.split(' ').slice(-1)[0] : '';
+             return `<div class="trade-pick" data-key="${k}" onclick="toggleTradePick(this)">
+               <span class="tp-check">✓</span>
+               <div class="tp-code">${code}</div>
+               ${lastName ? `<div class="tp-name">${lastName}</div>` : ''}
+             </div>`;
+           }).join('')}</div>`
+        : `<div style="color:var(--mu);font-size:12px;padding:10px 0">Não tens repetidos disponíveis para oferecer.</div>`;
+
+      grid.innerHTML = requestedHtml + myRepsHtml;
+
+      document.getElementById('tradeSendBtn').textContent = 'Confirmar troca';
+      document.getElementById('tradeSendBtn').onclick = () => confirmCounter(tradeId, trade);
+      modal.classList.add('open');
+      updateTradeCount();
+    });
   });
 };
 
 async function confirmCounter(tradeId, trade) {
-  const selected = [...document.querySelectorAll('#tradeModalGrid .trade-pick.selected')].map(el => el.dataset.key);
-  if (!selected.length) { showToast('Selecciona pelo menos 1 cromo', 'tc'); return; }
+  const wantedByTo = [...document.querySelectorAll('#tradeModalGrid .trade-pick.selected')].map(el => el.dataset.key);
+  if (!wantedByTo.length) { showToast('Selecciona pelo menos 1 cromo', 'tc'); return; }
 
   document.getElementById('tradeSendBtn').disabled = true;
   document.getElementById('tradeSendBtn').textContent = 'A confirmar...';
 
   try {
-    // 1. Actualizar trade com cromos do to e marcar accepted
+    // 1. Marcar trade como accepted com os cromos do TO
     await setDoc(doc(db, 'trades', tradeId), {
-      offeredByTo: selected,
+      wantedByTo,
       status: 'accepted',
       confirmedAt: Date.now()
     }, { merge: true });
 
-    // 2. Actualizar ST do utilizador actual (to):
-    //    - offeredByFrom → passa a "tenho" (1) se não tinha, decrementar repetidos do from (feito no from quando ele recarregar)
-    //    - selected (offeredByTo) → saem dos meus repetidos
-    for (const key of trade.offeredByFrom) {
-      if ((ST[key] || 0) < 1) ST[key] = 1;
+    // 2. Actualizar ST do utilizador actual (TO):
+    //    - wantedByFrom (o que ele pediu de mim) → saem dos meus repetidos (2→1)
+    //    - wantedByTo (o que eu pedi a ele) → entram como "tenho" (0→1)
+    for (const key of (trade.wantedByFrom || [])) {
+      if ((ST[key] || 0) >= 2) ST[key] = 1;
     }
-    for (const key of selected) {
-      if ((ST[key] || 0) >= 2) ST[key] = 1; // repetido → tenho 1
+    for (const key of wantedByTo) {
+      if ((ST[key] || 0) < 1) ST[key] = 1;
     }
     saveLocal();
     updGlobal();
     pushShared();
 
-    // 3. Postar no chat
+    // 3. Mensagem automática no chat
     const fromChild = trade.fromChild || trade.from;
-    const toChild = session.child || session.nome;
-    const labels = [...trade.offeredByFrom, ...selected].map(k => k.split('_')[1] || k).join(', ');
+    const toChild   = session.child || session.nome;
+    const allCodes  = [...(trade.wantedByFrom || []), ...wantedByTo].map(k => k.split('_')[1] || k).join(', ');
     await addDoc(collection(db, 'chat'), {
-      nome: ADMIN,
-      child: '🤝 Troca',
-      emoji: '🤝',
-      photo: '',
-      text: `✅ ${fromChild} e ${toChild} trocaram ${trade.offeredByFrom.length + selected.length} cromos! (${labels})`,
+      nome: ADMIN, child: '🤝 Troca', emoji: '🤝', photo: '',
+      text: `✅ ${fromChild} e ${toChild} trocaram ${(trade.wantedByFrom||[]).length + wantedByTo.length} cromos! (${allCodes})`,
       ts: serverTimestamp()
     });
 
@@ -850,6 +862,7 @@ async function confirmCounter(tradeId, trade) {
     document.getElementById('tradeSendBtn').textContent = 'Confirmar troca';
   }
 }
+
 
 window.rejectTrade = async function(tradeId) {
   if (!confirm('Recusar esta proposta?')) return;
