@@ -545,13 +545,13 @@ async function renderT() {
         </div>
         <div class="trade-legs">
           <div class="trade-leg">
-            <div class="trade-leg-lbl" style="color:var(--ok)">📥 Recebes (${trade.wantedByFrom.length})</div>
-            <div class="stags">${trade.wantedByFrom.map(k => `<span class="stag cg" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
+            <div class="trade-leg-lbl" style="color:var(--ok)">📥 Recebes (${(trade.wantedByFrom||trade.offeredByFrom||[]).length})</div>
+            <div class="stags">${(trade.wantedByFrom||trade.offeredByFrom||[]).map(k => `<span class="stag cg" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
           </div>
           <div class="trade-leg">
-            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Dás (${trade.wantedByTo?.length || 0})</div>
-            <div class="stags">${(trade.wantedByTo||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}
-            ${!trade.wantedByTo?.length ? '<span style="font-size:10px;color:var(--mu);font-style:italic">Aguarda que selecciones o que dás</span>' : ''}</div>
+            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Dás (${(trade.wantedByTo||trade.offeredByTo||[]).length || 0})</div>
+            <div class="stags">${((trade.wantedByTo||trade.offeredByTo||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}
+            ${!(trade.wantedByTo||trade.offeredByTo||[]).length ? '<span style="font-size:10px;color:var(--mu);font-style:italic">Aguarda que selecciones o que dás</span>' : ''}</div>
           </div>
         </div>
         <div class="trade-actions">
@@ -582,8 +582,8 @@ async function renderT() {
         </div>
         <div class="trade-legs">
           <div class="trade-leg">
-            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Ofereces (${trade.wantedByFrom.length})</div>
-            <div class="stags">${trade.wantedByFrom.map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
+            <div class="trade-leg-lbl" style="color:var(--rep)">📤 Ofereces (${(trade.wantedByFrom||trade.offeredByFrom||[]).length})</div>
+            <div class="stags">${(trade.wantedByFrom||trade.offeredByFrom||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}</div>
           </div>
         </div>
       </div>`;
@@ -636,8 +636,8 @@ async function renderT() {
       const partnerUser = users.find(u => u.nome === partner);
       const av = partnerUser?.photo ? `<img src="${partnerUser.photo}">` : (partnerUser?.emoji || '⚽');
       const when = trade.confirmedAt ? new Date(trade.confirmedAt).toLocaleDateString('pt-PT') : '—';
-      const gave = iFrom ? trade.wantedByFrom : (trade.wantedByTo || []);
-      const got = iFrom ? (trade.wantedByTo || []) : trade.wantedByFrom;
+      const gave = iFrom ? (trade.wantedByFrom||trade.offeredByFrom||[]) : (trade.wantedByTo||trade.offeredByTo||[]);
+      const got = iFrom ? (trade.wantedByTo||trade.offeredByTo||[]) : (trade.wantedByFrom||trade.offeredByFrom||[]);
       html += `<div class="ucard" style="opacity:.8">
         <div class="uchead">
           <div class="uavsm">${av}</div>
@@ -776,16 +776,16 @@ window.openCounterModal = function(tradeId, fromNome) {
       const modal = document.getElementById('tradeModal');
       document.getElementById('tradeModalTitle').textContent = `🔄 Responder a ${fromChild}`;
       document.getElementById('tradeModalSub').textContent   =
-        `${fromChild} quer: ${(trade.wantedByFrom || []).map(k => k.split('_')[1] || k).join(', ')}.\n\nSelecciona os teus repetidos que queres receber em troca.`;
+        `${fromChild} quer: ${((trade.wantedByFrom||trade.offeredByFrom||[]) || []).map(k => k.split('_')[1] || k).join(', ')}.\n\nSelecciona os teus repetidos que queres receber em troca.`;
       document.getElementById('tradeModalTarget').value      = tradeId;
       document.getElementById('tradeModalTargetChild').value = 'counter';
 
       const grid = document.getElementById('tradeModalGrid');
 
       // Mostrar o que o FROM pediu (read-only, para contexto)
-      const requestedHtml = (trade.wantedByFrom || []).length
-        ? `<div class="trade-section-label" style="color:var(--acc)">📥 ${fromChild} quer de ti (${trade.wantedByFrom.length})</div>
-           <div class="trade-grid-inner" style="margin-bottom:14px">${(trade.wantedByFrom).map(k => {
+      const requestedHtml = ((trade.wantedByFrom||trade.offeredByFrom||[]) || []).length
+        ? `<div class="trade-section-label" style="color:var(--acc)">📥 ${fromChild} quer de ti (${(trade.wantedByFrom||trade.offeredByFrom||[]).length})</div>
+           <div class="trade-grid-inner" style="margin-bottom:14px">${((trade.wantedByFrom||trade.offeredByFrom||[]).map(k => {
              const code = k.split('_')[1] || k;
              const name = PLAYERS[code] || '';
              return `<div class="trade-pick trade-pick-hot" style="pointer-events:none;opacity:.85">
@@ -838,7 +838,7 @@ async function confirmCounter(tradeId, trade) {
     // 2. Actualizar ST do utilizador actual (TO):
     //    - wantedByFrom (o que ele pediu de mim) → saem dos meus repetidos (2→1)
     //    - wantedByTo (o que eu pedi a ele) → entram como "tenho" (0→1)
-    for (const key of (trade.wantedByFrom || [])) {
+    for (const key of ((trade.wantedByFrom||trade.offeredByFrom||[]) || [])) {
       if ((ST[key] || 0) >= 2) ST[key] = 1;
     }
     for (const key of wantedByTo) {
@@ -851,10 +851,10 @@ async function confirmCounter(tradeId, trade) {
     // 3. Mensagem automática no chat
     const fromChild = trade.fromChild || trade.from;
     const toChild   = session.child || session.nome;
-    const allCodes  = [...(trade.wantedByFrom || []), ...wantedByTo].map(k => k.split('_')[1] || k).join(', ');
+    const allCodes  = [...((trade.wantedByFrom||trade.offeredByFrom||[]) || []), ...wantedByTo].map(k => k.split('_')[1] || k).join(', ');
     await addDoc(collection(db, 'chat'), {
       nome: ADMIN, child: '🤝 Troca', emoji: '🤝', photo: '',
-      text: `✅ ${fromChild} e ${toChild} trocaram ${(trade.wantedByFrom||[]).length + wantedByTo.length} cromos! (${allCodes})`,
+      text: `✅ ${fromChild} e ${toChild} trocaram ${(trade.wantedByFrom||trade.offeredByFrom||[]).length + wantedByTo.length} cromos! (${allCodes})`,
       ts: serverTimestamp()
     });
 
