@@ -550,8 +550,7 @@ async function renderT() {
           </div>
           <div class="trade-leg">
             <div class="trade-leg-lbl" style="color:var(--rep)">📤 Dás (${(trade.wantedByTo||trade.offeredByTo||[]).length || 0})</div>
-            <div class="stags">${((trade.wantedByTo||trade.offeredByTo||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}
-            ${!(trade.wantedByTo||trade.offeredByTo||[]).length ? '<span style="font-size:10px;color:var(--mu);font-style:italic">Aguarda que selecciones o que dás</span>' : ''}</div>
+            <div class="stags">${(trade.wantedByTo||trade.offeredByTo||[]).map(k => `<span class="stag cd" title="${getPlayerLabel(k)}">${k.split('_')[1]||k}</span>`).join('')}${!(trade.wantedByTo||trade.offeredByTo||[]).length ? '<span style="font-size:10px;color:var(--mu);font-style:italic">Aguarda que selecciones o que dás</span>' : ''}</div>
           </div>
         </div>
         <div class="trade-actions">
