@@ -687,16 +687,26 @@ window.openProposeModal = function(toNome, toChild) {
     document.getElementById('tradeModalTargetChild').value = toChild;
 
     const grid = document.getElementById('tradeModalGrid');
-    grid.innerHTML = sorted.map(k => {
+    const mkCard = (k, hot) => {
       const code = k.split('_')[1] || k;
       const name = PLAYERS[code] || '';
-      const needed = relevant.includes(k);
-      return `<div class="trade-pick ${needed ? 'trade-pick-hot' : ''}" data-key="${k}" onclick="toggleTradePick(this)" title="${name}">
+      const lastName = name ? name.split(' ').slice(-1)[0] : '';
+      return `<div class="trade-pick ${hot ? 'trade-pick-hot' : ''}" data-key="${k}" onclick="toggleTradePick(this)">
+        <span class="tp-check">✓</span>
         <div class="tp-code">${code}</div>
-        ${name ? `<div class="tp-name">${name.split(' ').slice(-1)[0]}</div>` : ''}
-        ${needed ? '<div class="tp-badge">✓ precisa</div>' : ''}
+        ${lastName ? `<div class="tp-name">${lastName}</div>` : ''}
+        ${hot ? '<div class="tp-badge">precisa</div>' : ''}
       </div>`;
-    }).join('');
+    };
+    const hotHtml = relevant.length
+      ? `<div class="trade-section-label hot">✅ ${toChild} precisa (${relevant.length})</div>
+         <div class="trade-grid-inner">${relevant.map(k => mkCard(k, true)).join('')}</div>`
+      : '';
+    const restHtml = rest.length
+      ? `<div class="trade-section-label" style="margin-top:${relevant.length?'10px':'0'}">⬜ Outros repetidos teus (${rest.length})</div>
+         <div class="trade-grid-inner">${rest.map(k => mkCard(k, false)).join('')}</div>`
+      : '';
+    grid.innerHTML = hotHtml + restHtml;
 
     document.getElementById('tradeSendBtn').onclick = () => sendTradeProposal(toNome, toChild);
     modal.classList.add('open');
@@ -769,14 +779,17 @@ window.openCounterModal = function(tradeId, fromNome) {
     if (!myReps.length) {
       grid.innerHTML = '<div style="color:var(--mu);font-size:12px;padding:10px">Não tens repetidos disponíveis para dar.</div>';
     } else {
-      grid.innerHTML = myReps.map(k => {
-        const code = k.split('_')[1] || k;
-        const name = PLAYERS[code] || '';
-        return `<div class="trade-pick" data-key="${k}" onclick="toggleTradePick(this)" title="${name}">
-          <div class="tp-code">${code}</div>
-          ${name ? `<div class="tp-name">${name.split(' ').slice(-1)[0]}</div>` : ''}
-        </div>`;
-      }).join('');
+      grid.innerHTML = `<div class="trade-section-label">Os teus repetidos (${myReps.length})</div>
+        <div class="trade-grid-inner">${myReps.map(k => {
+          const code = k.split('_')[1] || k;
+          const name = PLAYERS[code] || '';
+          const lastName = name ? name.split(' ').slice(-1)[0] : '';
+          return `<div class="trade-pick" data-key="${k}" onclick="toggleTradePick(this)">
+            <span class="tp-check">✓</span>
+            <div class="tp-code">${code}</div>
+            ${lastName ? '<div class="tp-name">'+lastName+'</div>' : ''}
+          </div>`;
+        }).join('')}</div>`;
     }
 
     document.getElementById('tradeSendBtn').onclick = () => confirmCounter(tradeId, trade);
