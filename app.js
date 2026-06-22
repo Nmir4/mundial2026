@@ -456,11 +456,8 @@ function getPlayerLabel(key) {
 
 async function startTradesNotif() {
   if (!session) return;
-  const q = query(
-    collection(db, 'trades'),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
+  // Usar colecção simples sem orderBy para evitar erro de índice
+  const q = collection(db, 'trades');
   onSnapshot(q, snap => {
     if (ctab === 't') return;
     const pending = [];
@@ -478,6 +475,7 @@ async function startTradesNotif() {
 
 async function renderT() {
   document.getElementById('mc').innerHTML = `<div class="loading"><div class="spin"></div><br>A carregar trocas...</div>`;
+  try {
 
   const myReps = new Set(Object.entries(ST).filter(([, v]) => v === 2).map(([k]) => k));
   const myMiss = new Set();
@@ -493,13 +491,17 @@ async function renderT() {
   if (badge) badge.style.display = 'none';
 
   // Carregar utilizadores e trocas em paralelo
-  const [users, tradesSnap] = await Promise.all([
+  // trades pode não existir ainda no Firebase — apanhar erro graciosamente
+  const [users, allTrades] = await Promise.all([
     loadShared(),
-    getDocs(query(collection(db, 'trades'), orderBy('createdAt', 'desc'), limit(50)))
+    getDocs(collection(db, 'trades'))
+      .then(snap => {
+        const arr = [];
+        snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+        return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      })
+      .catch(() => [])
   ]);
-
-  const allTrades = [];
-  tradesSnap.forEach(d => allTrades.push({ id: d.id, ...d.data() }));
 
   // Trocas pendentes para mim
   const pendingForMe = allTrades.filter(t => t.status === 'pending' && t.to === session.nome);
@@ -660,6 +662,10 @@ async function renderT() {
   }
 
   document.getElementById('mc').innerHTML = html;
+  } catch(e) {
+    console.error('renderT error:', e);
+    document.getElementById('mc').innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><div class="et">Erro ao carregar trocas</div><div class="es">${e.message||'Tenta novamente'}</div></div>`;
+  }
 }
 
 // ── MODAL: PROPOR TROCA ───────────────────────────────────
@@ -758,7 +764,7 @@ window.openCounterModal = function(tradeId, fromNome) {
   getDocs(collection(db, 'trades')).then(snap => {
     let trade = null;
     snap.forEach(d => { if (d.id === tradeId) trade = { id: d.id, ...d.data() }; });
-    if (!trade) return;
+    if (!trade) { showToast('Proposta não encontrada.', 'tc'); return; }
 
     loadShared().then(users => {
       const sender = users.find(u => u.nome === fromNome);
