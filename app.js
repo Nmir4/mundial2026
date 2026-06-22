@@ -727,6 +727,26 @@ window.openProposeModal = function(toNome, toChild) {
   });
 };
 
+
+window.toggleTradePick = function(el) {
+  el.classList.toggle('selected');
+  updateTradeCount();
+};
+
+window.updateTradeCount = function() {
+  const n = document.querySelectorAll('#tradeModalGrid .trade-pick.selected').length;
+  const el = document.getElementById('tradePickCount');
+  if (el) el.textContent = n ? n + ' cromo' + (n > 1 ? 's' : '') + ' seleccionado' + (n > 1 ? 's' : '') : 'Nenhum seleccionado';
+  const btn = document.getElementById('tradeSendBtn');
+  if (btn) btn.disabled = n === 0;
+};
+// alias interno
+function updateTradeCount() { window.updateTradeCount(); }
+
+window.closeTradeModal = function() {
+  document.getElementById('tradeModal').classList.remove('open');
+};
+
 async function sendTradeProposal(toNome, toChild) {
   // "wantedFromThem" = cromos dele que eu quero
   const wantedFromThem = [...document.querySelectorAll('#tradeModalGrid .trade-pick.selected')].map(el => el.dataset.key);
