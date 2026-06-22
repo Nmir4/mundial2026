@@ -782,32 +782,35 @@ window.openCounterModal = function(tradeId, fromNome) {
       const grid = document.getElementById('tradeModalGrid');
 
       // Mostrar o que o FROM pediu (read-only, para contexto)
-      const requestedHtml = ((trade.wantedByFrom||trade.offeredByFrom||[]) || []).length
-        ? `<div class="trade-section-label" style="color:var(--acc)">📥 ${fromChild} quer de ti (${(trade.wantedByFrom||trade.offeredByFrom||[]).length})</div>
-           <div class="trade-grid-inner" style="margin-bottom:14px">${((trade.wantedByFrom||trade.offeredByFrom||[]).map(k => {
-             const code = k.split('_')[1] || k;
-             const name = PLAYERS[code] || '';
-             return `<div class="trade-pick trade-pick-hot" style="pointer-events:none;opacity:.85">
-               <div class="tp-code">${code}</div>
-               ${name ? `<div class="tp-name">${name.split(' ').slice(-1)[0]}</div>` : ''}
-             </div>`;
-           }).join('')}</div>`
+      const _reqItems = (trade.wantedByFrom||trade.offeredByFrom||[]);
+      const requestedHtml = _reqItems.length
+        ? '<div class="trade-section-label" style="color:var(--acc)">📥 ' + fromChild + ' quer de ti (' + _reqItems.length + ')</div>' +
+          '<div class="trade-grid-inner" style="margin-bottom:14px">' +
+          _reqItems.map(k => {
+            const code = k.split('_')[1] || k;
+            const name = PLAYERS[code] || '';
+            return '<div class="trade-pick trade-pick-hot" style="pointer-events:none;opacity:.85">' +
+              '<div class="tp-code">' + code + '</div>' +
+              (name ? '<div class="tp-name">' + name.split(' ').slice(-1)[0] + '</div>' : '') +
+              '</div>';
+          }).join('') + '</div>'
         : '';
 
       // Os meus repetidos — o que quero dar em troca
       const myRepsHtml = myReps.length
-        ? `<div class="trade-section-label hot">🎯 O que queres em troca? (selecciona)</div>
-           <div class="trade-grid-inner">${myReps.map(k => {
-             const code = k.split('_')[1] || k;
-             const name = PLAYERS[code] || '';
-             const lastName = name ? name.split(' ').slice(-1)[0] : '';
-             return `<div class="trade-pick" data-key="${k}" onclick="toggleTradePick(this)">
-               <span class="tp-check">✓</span>
-               <div class="tp-code">${code}</div>
-               ${lastName ? `<div class="tp-name">${lastName}</div>` : ''}
-             </div>`;
-           }).join('')}</div>`
-        : `<div style="color:var(--mu);font-size:12px;padding:10px 0">Não tens repetidos disponíveis para oferecer.</div>`;
+        ? '<div class="trade-section-label hot">🎯 O que queres em troca? (selecciona)</div>' +
+          '<div class="trade-grid-inner">' +
+          myReps.map(k => {
+            const code = k.split('_')[1] || k;
+            const name = PLAYERS[code] || '';
+            const lastName = name ? name.split(' ').slice(-1)[0] : '';
+            return '<div class="trade-pick" data-key="' + k + '" onclick="toggleTradePick(this)">' +
+              '<span class="tp-check">✓</span>' +
+              '<div class="tp-code">' + code + '</div>' +
+              (lastName ? '<div class="tp-name">' + lastName + '</div>' : '') +
+              '</div>';
+          }).join('') + '</div>'
+        : '<div style="color:var(--mu);font-size:12px;padding:10px 0">Não tens repetidos disponíveis para oferecer.</div>';
 
       grid.innerHTML = requestedHtml + myRepsHtml;
 
